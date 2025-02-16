@@ -3,7 +3,7 @@ name: Release ClickOnce App
 on:
   push:
     tags:
-      - 'v*' # Trigger workflow for tags starting with 'v'
+      - 'v*'
 
 jobs:
   build-and-release:
@@ -13,29 +13,26 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Setup .NET
+      - name: Setup .NET SDK
         uses: actions/setup-dotnet@v3
         with:
-          dotnet-version: '9.0.x'
+          dotnet-version: '8.0.x'  # Use latest stable .NET 8
 
-      - name: Restore NuGet Packages Again
+      - name: Restore NuGet Packages
         run: dotnet restore
 
       - name: Install Missing Package
         run: dotnet add package Microsoft.Net.Sdk.Compilers.Toolset
 
-      # adjust path
-      - name: Restore NuGet Packages
+      - name: Restore NuGet Packages Again
         run: dotnet restore
 
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v1
 
-      # adjust path and name of .sln
       - name: Build ClickOnce App
         run: |
-          MSBuild.exe inoVBATools.sln /p:Configuration=Release /target:publish /p:PublishDir=${{ github.workspace }}\bin\Release\publish
-        
+          "C:\Program Files\Microsoft Visual Studio\2022\BuildTools\MSBuild\Current\Bin\MSBuild.exe" inoVBATools.sln /p:Configuration=Release /target:publish /p:PublishDir=${{ github.workspace }}\bin\Release\publish
 
       - name: Locate signtool.exe
         run: |
@@ -54,8 +51,6 @@ jobs:
           $certContent = [System.Convert]::FromBase64String("${{ secrets.CODE_SIGN_CERT }}")
           [System.IO.File]::WriteAllBytes("cert.pfx", $certContent)
 
-      # adjust name of exe
-      # may adjust path to signtool.exe
       - name: Sign Executable
         run: |
           $signtoolPath = "C:\Program Files (x86)\Windows Kits\10\bin\10.0.26100.0\x86\signtool.exe"
@@ -72,13 +67,11 @@ jobs:
             /a ${{ github.workspace }}\bin\Release\publish\inoVBATools.exe
         shell: powershell
 
-      # adjust name of project
       - name: Zip ClickOnce Files
         run: |
           Compress-Archive -Path ${{ github.workspace }}\bin\Release\publish\* -DestinationPath inoVBATools-release-${{ github.ref_name }}.zip
         shell: powershell
 
-      # adjust name of project
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
@@ -89,4 +82,3 @@ jobs:
           files: inoVBATools-release-${{ github.ref_name }}.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
